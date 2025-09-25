@@ -56,59 +56,46 @@ def index():
 
 @app.route('/captcha_image')
 def captcha_image():
-    # Determinar si será operación de 1 o 2 cifras (50% probabilidad cada una)
-    use_two_digits = random.choice([True, False])
-    
-    if use_two_digits:
-        # Operaciones con dos cifras
-        num1 = random.randint(10, 99)
-        num2 = random.randint(10, 99)
-        operator = random.choice(['+', '-', '*', '//'])
-    else:
-        # Operaciones con una cifra (incluyendo las más complejas)
-        num1 = random.randint(1, 9)
-        num2 = random.randint(1, 9)
-        operator = random.choice(['+', '-', '*', '//', '^', '!'])
+    # Cantidad de números (2, 3 o 4)
+    num_count = random.choice([2, 3, 4])
 
-    # Calcular respuesta
-    if operator == '+':
-        answer = num1 + num2
-        op_symbol = '+'
-    elif operator == '-':
-        answer = num1 - num2
-        op_symbol = '−'
-    elif operator == '*':
-        answer = num1 * num2
-        op_symbol = '×'
-    elif operator == '//':
-        # Para división, asegurar división exacta
-        if use_two_digits:
-            # Encontrar un divisor que dé resultado exacto
-            divisors = [i for i in range(1, min(20, num1)) if num1 % i == 0]
-            if divisors:
-                num2 = random.choice(divisors)
-            else:
-                num2 = 1
-        answer = num1 // num2
-        op_symbol = '÷'
-    elif operator == '^':
-        answer = num1 ** num2
-        op_symbol = '^'
-    elif operator == '!':
-        answer = _factorial(num1)
-        op_symbol = '!'
-        num2 = ''  # El factorial solo usa un número
+    # Generar lista de números
+    numbers = []
+    for _ in range(num_count):
+        if num_count == 2:
+            numbers.append(random.randint(10, 99))  # si es simple, usar dos dígitos
+        else:
+            numbers.append(random.randint(1, 20))   # si es más largo, usar 1–20
+
+    # Operadores permitidos
+    operators = ['+', '-', '*', '//']
+
+    # Construir expresión
+    expression_parts = []
+    for i, num in enumerate(numbers):
+        expression_parts.append(str(num))
+        if i < num_count - 1:
+            expression_parts.append(random.choice(operators))
+
+    expression = " ".join(expression_parts)
+
+    # Calcular respuesta de forma segura
+    try:
+        if '//' in expression:
+            # asegurar que los divisores no sean cero
+            while ' // 0' in expression:
+                expression = expression.replace(' // 0', f' // {random.randint(1,9)}')
+        answer = eval(expression)
+    except ZeroDivisionError:
+        answer = 0
 
     session['captcha_answer'] = answer
-    
-    # Construir texto del captcha
-    if operator == '!':
-        captcha_text = f"{num1}{op_symbol} = ?"
-    else:
-        captcha_text = f"{num1} {op_symbol} {num2} = ?"
+
+    # Texto para mostrar (más bonito, con símbolos matemáticos)
+    captcha_text = expression.replace('//', '÷').replace('*', '×')
 
     # Generar imagen
-    img = Image.new('RGB', (250 if use_two_digits else 180, 60), color=(255, 255, 255))
+    img = Image.new('RGB', (320, 70), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
     try:
         font = ImageFont.truetype("arial.ttf", 28)
@@ -116,12 +103,13 @@ def captcha_image():
         font = ImageFont.load_default()
 
     # Líneas de fondo para dificultar OCR
-    for _ in range(15):
+    for _ in range(20):
         x1, y1 = random.randint(0, img.width), random.randint(0, img.height)
-        x2, y2 = x1 + random.randint(-8, 8), y1 + random.randint(-8, 8)
-        draw.line((x1, y1, x2, y2), fill=(220, 220, 220), width=1)
+        x2, y2 = x1 + random.randint(-12, 12), y1 + random.randint(-12, 12)
+        draw.line((x1, y1, x2, y2), fill=(200, 200, 200), width=1)
 
-    draw.text((20, 15), captcha_text, font=font, fill=(0, 0, 0))
+    # Dibujar texto
+    draw.text((20, 20), f"{captcha_text} = ?", font=font, fill=(0, 0, 0))
 
     img_io = io.BytesIO()
     img.save(img_io, 'PNG')
@@ -171,7 +159,6 @@ def captcha_logico():
         sequence = [primes[idx], primes[idx+1], primes[idx+2], "?"]
         answer = primes[idx+3]
     elif sequence_type == 'fibonacci':
-        # Secuencia Fibonacci simplificada
         a, b = random.randint(1, 5), random.randint(2, 8)
         sequence = [a, b, a+b, b+(a+b), "?"]
         answer = (a+b) + (b+(a+b))
@@ -189,7 +176,7 @@ def captcha_logico():
                                             sequence_type=sequence_type))
 
 # -------------------------
-# CAPTCHA por identificación (existente)
+# CAPTCHA por identificación
 # -------------------------
 @app.route('/captcha-id', methods=['GET', 'POST'])
 def captcha_id_step1():
