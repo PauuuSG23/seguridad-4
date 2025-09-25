@@ -2,29 +2,61 @@
 {% block title %}Menú inicial{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center g-4">
-  <div class="col-12 col-md-5">
-    <div class="card h-100 shadow-sm">
-      <div class="card-body d-flex flex-column">
-        <h2 class="h5">CAPTCHA aritmético</h2>
-        <p class="text-muted mb-4">Resuelve una operación (+, −, ×) para continuar.</p>
-        <div class="mt-auto">
-          <a href="{{ url_for('index') }}" class="btn btn-primary w-100">Ir al CAPTCHA aritmético</a>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="text-center mb-4">
+            <h1>Selecciona un tipo de CAPTCHA</h1>
+            <p class="lead">Elige uno de los siguientes métodos de verificación</p>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <div class="col-12 col-md-5">
-    <div class="card h-100 shadow-sm">
-      <div class="card-body d-flex flex-column">
-        <h2 class="h5">CAPTCHA por identificación</h2>
-        <p class="text-muted mb-4">Verifica dos posiciones aleatorias de tu identificación.</p>
-        <div class="mt-auto">
-          <a href="{{ url_for('captcha_id_step1') }}" class="btn btn-outline-primary w-100">Ir al CAPTCHA por identificación</a>
+        <div class="row justify-content-center g-4">
+            <div class="col-12 col-md-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column">
+                        <h2 class="h5 card-title">CAPTCHA Aritmético</h2>
+                        <p class="text-muted mb-3">Resuelve una operación matemática (+, −, ×, ÷, ^, !) para continuar.</p>
+                        <div class="mt-auto">
+                            <a href="{{ url_for('index') }}" class="btn btn-primary w-100">Ir al CAPTCHA Aritmético</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column">
+                        <h2 class="h5 card-title">CAPTCHA por Identificación</h2>
+                        <p class="text-muted mb-3">Verifica dos posiciones aleatorias de tu identificación.</p>
+                        <div class="mt-auto">
+                            <a href="{{ url_for('captcha_id_step1') }}" class="btn btn-outline-primary w-100">Ir al CAPTCHA por Identificación</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nuevo CAPTCHA Lógico -->
+            <div class="col-12 col-md-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column">
+                        <h2 class="h5 card-title">CAPTCHA Lógico</h2>
+                        <p class="text-muted mb-3">Completa la secuencia numérica siguiendo el patrón lógico.</p>
+                        <div class="mt-auto">
+                            <a href="{{ url_for('captcha_logico') }}" class="btn btn-warning w-100">Ir al CAPTCHA Lógico</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <!-- Información adicional -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <h4 class="alert-heading">¿Qué es un CAPTCHA?</h4>
+                    <p class="mb-0">Un CAPTCHA es una prueba desafío-respuesta utilizada para determinar cuándo el usuario es un humano y no un programa automatizado.</p>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}

@@ -7,17 +7,11 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 # -------------------------
-# Helpers
+# Helpers, los helpers se usan en varias vistas
 # -------------------------
 def _only_digits(text: str) -> str:
     import re as _re
-    return _re.sub(r'\D+', '', text or '')
-
-def _factorial(n):
-    """Calcula factorial de números pequeños para el captcha"""
-    if n < 0 or n > 7:  # Limitar para no sobrecargar
-        return 1
-    return math.factorial(n) if n >= 0 else 1
+    return _re.sub(r'\\D+', '', text or '')
 
 def _no_cache_response(html):
     """Devuelve una respuesta HTML con cabeceras no-cache para evitar páginas en el historial."""
@@ -35,7 +29,7 @@ def home():
     return _no_cache_response(render_template('home.html'))
 
 # -------------------------
-# CAPTCHA aritmético MEJORADO
+# CAPTCHA aritmético (ÚNICA RUTA PRINCIPAL)
 # -------------------------
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -56,72 +50,55 @@ def index():
 
 @app.route('/captcha_image')
 def captcha_image():
-    # Determinar si será operación de 1 o 2 cifras (50% probabilidad cada una)
-    use_two_digits = random.choice([True, False])
-    
-    if use_two_digits:
-        # Operaciones con dos cifras
-        num1 = random.randint(10, 99)
-        num2 = random.randint(10, 99)
-        operator = random.choice(['+', '-', '*', '//'])
-    else:
-        # Operaciones con una cifra (incluyendo las más complejas)
-        num1 = random.randint(1, 9)
-        num2 = random.randint(1, 9)
-        operator = random.choice(['+', '-', '*', '//', '^', '!'])
+    # Operaciones disponibles: división entera, potencia y factorial
+    operator = random.choice(['//', '^', '!'])
 
-    # Calcular respuesta
-    if operator == '+':
-        answer = num1 + num2
-        op_symbol = '+'
-    elif operator == '-':
-        answer = num1 - num2
-        op_symbol = '−'
-    elif operator == '*':
-        answer = num1 * num2
-        op_symbol = '×'
-    elif operator == '//':
-        # Para división, asegurar división exacta
-        if use_two_digits:
-            # Encontrar un divisor que dé resultado exacto
-            divisors = [i for i in range(1, min(20, num1)) if num1 % i == 0]
-            if divisors:
-                num2 = random.choice(divisors)
-            else:
-                num2 = 1
-        answer = num1 // num2
+    if operator == '//':  # División entera
+        # Asegurar división exacta
+        num2 = random.randint(2, 9)
+        quotient = random.randint(1, 9)
+        num1 = num2 * quotient  # num1 será múltiplo de num2
+        answer = num1 // num2   # Esto será igual a quotient
         op_symbol = '÷'
-    elif operator == '^':
+        captcha_text = f"{num1} {op_symbol} {num2} = ?"
+        
+    elif operator == '^':  # Potencia
+        # Definir AMBOS números para potencia
+        num1 = random.randint(2, 5)  # Base pequeña
+        num2 = random.randint(2, 3)  # Exponente pequeño
         answer = num1 ** num2
         op_symbol = '^'
-    elif operator == '!':
-        answer = _factorial(num1)
+        captcha_text = f"{num1}{op_symbol}{num2} = ?"
+        
+    else:  # Factorial '!'
+        # Para factorial, solo necesitamos un número
+        num1 = random.randint(3, 6)  # 3!=6, 4!=24, 5!=120, 6!=720
+        answer = math.factorial(num1)
         op_symbol = '!'
-        num2 = ''  # El factorial solo usa un número
+        captcha_text = f"{num1}{op_symbol} = ?"
 
     session['captcha_answer'] = answer
-    
-    # Construir texto del captcha
-    if operator == '!':
-        captcha_text = f"{num1}{op_symbol} = ?"
-    else:
-        captcha_text = f"{num1} {op_symbol} {num2} = ?"
 
-    # Generar imagen
-    img = Image.new('RGB', (250 if use_two_digits else 180, 60), color=(255, 255, 255))
+    # Ajustar el ancho de la imagen según el contenido
+    text_length = len(captcha_text)
+    img_width = max(180, text_length * 15)  # Ancho dinámico
+    
+    img = Image.new('RGB', (img_width, 60), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
     try:
         font = ImageFont.truetype("arial.ttf", 28)
     except:
         font = ImageFont.load_default()
 
-    # Líneas de fondo para dificultar OCR
+    # Añadir ruido de fondo
     for _ in range(15):
-        x1, y1 = random.randint(0, img.width), random.randint(0, img.height)
+        x1, y1 = random.randint(0, img_width), random.randint(0, 60)
         x2, y2 = x1 + random.randint(-8, 8), y1 + random.randint(-8, 8)
         draw.line((x1, y1, x2, y2), fill=(220, 220, 220), width=1)
 
-    draw.text((20, 15), captcha_text, font=font, fill=(0, 0, 0))
+    # Centrar el texto
+    text_x = (img_width - len(captcha_text) * 12) // 2
+    draw.text((max(10, text_x), 15), captcha_text, font=font, fill=(0, 0, 0))
 
     img_io = io.BytesIO()
     img.save(img_io, 'PNG')
@@ -129,67 +106,7 @@ def captcha_image():
     return send_file(img_io, mimetype='image/png')
 
 # -------------------------
-# NUEVO CAPTCHA: Secuencia lógica
-# -------------------------
-@app.route('/captcha-logico', methods=['GET', 'POST'])
-def captcha_logico():
-    if request.method == 'POST':
-        user_answer = request.form.get('logico_answer')
-        real_pattern = session.get('logico_pattern')
-        sequence_type = session.get('sequence_type')
-
-        if user_answer and real_pattern:
-            try:
-                user_num = int(user_answer.strip())
-                if user_num == real_pattern:
-                    session['just_logged_in'] = True
-                    flash("Secuencia lógica correcta. ¡Bienvenido!", "success")
-                    return redirect(url_for('bienvenido'))
-                else:
-                    flash(f"Incorrecto. La secuencia era {sequence_type}. Inténtalo de nuevo.", "danger")
-            except ValueError:
-                flash("Por favor ingresa un número válido.", "danger")
-        
-        return redirect(url_for('captcha_logico'))
-
-    # Generar nueva secuencia lógica
-    sequence_type = random.choice(['par', 'impar', 'primo', 'fibonacci', 'multiplo'])
-    
-    if sequence_type == 'par':
-        start = random.randint(2, 20) * 2  # Número par
-        sequence = [start, start + 2, start + 4, "?"]
-        answer = start + 6
-    elif sequence_type == 'impar':
-        start = random.randint(1, 19) 
-        if start % 2 == 0: 
-            start += 1  # Asegurar que sea impar
-        sequence = [start, start + 2, start + 4, "?"]
-        answer = start + 6
-    elif sequence_type == 'primo':
-        primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
-        idx = random.randint(0, len(primes) - 4)
-        sequence = [primes[idx], primes[idx+1], primes[idx+2], "?"]
-        answer = primes[idx+3]
-    elif sequence_type == 'fibonacci':
-        # Secuencia Fibonacci simplificada
-        a, b = random.randint(1, 5), random.randint(2, 8)
-        sequence = [a, b, a+b, b+(a+b), "?"]
-        answer = (a+b) + (b+(a+b))
-    else:  # multiplo
-        multiplier = random.randint(2, 5)
-        start = random.randint(1, 10)
-        sequence = [start*multiplier, (start+1)*multiplier, (start+2)*multiplier, "?"]
-        answer = (start+3)*multiplier
-
-    session['logico_pattern'] = answer
-    session['sequence_type'] = sequence_type
-
-    return _no_cache_response(render_template('captcha_logico.html', 
-                                            sequence=sequence, 
-                                            sequence_type=sequence_type))
-
-# -------------------------
-# CAPTCHA por identificación (existente)
+# CAPTCHA por identificación (2 pasos)
 # -------------------------
 @app.route('/captcha-id', methods=['GET', 'POST'])
 def captcha_id_step1():
@@ -202,6 +119,7 @@ def captcha_id_step1():
 
         session['user_id'] = user_id
 
+        # Dos posiciones distintas 1-indexadas
         p1 = random.randint(1, len(user_id))
         p2 = random.randint(1, len(user_id))
         while p2 == p1:
@@ -234,10 +152,12 @@ def captcha_id_step2():
         if ok:
             session['just_logged_in'] = True
             flash("Verificación por identificación completada. ¡Bienvenido!", "success")
+            # Limpiar datos sensibles
             session.pop('id_positions', None)
             return redirect(url_for('bienvenido'))
         else:
             flash("Los dígitos no coinciden. Inténtalo de nuevo.", "danger")
+            # Reasignar nuevas posiciones
             p1 = random.randint(1, len(user_id))
             p2 = random.randint(1, len(user_id))
             while p2 == p1:
@@ -252,9 +172,12 @@ def captcha_id_step2():
 # -------------------------
 @app.route('/bienvenido')
 def bienvenido():
+    # Solo mostrar si viene de un login/captcha recién completado
     if session.get('just_logged_in'):
+        # Consumir la bandera para que al volver atrás NO se muestre de nuevo
         session.pop('just_logged_in', None)
         return _no_cache_response(render_template('welcome.html'))
+    # Si intenta llegar sin pasar por verificación, lo mandamos al menú
     flash("Por favor, inicia desde el menú.", "danger")
     return redirect(url_for('home'))
 
